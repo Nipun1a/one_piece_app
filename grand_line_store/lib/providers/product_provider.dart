@@ -33,8 +33,11 @@ class ProductProvider extends ChangeNotifier {
   String _selectedCategory = 'All';
   String _searchQuery = '';
   Timer? _debounce;
+  int _requestId = 0;
+  bool _disposed = false;
 
-  ProductProvider({required this._apiService});
+  // ignore: prefer_initializing_formals
+  ProductProvider({required ApiService apiService}) : _apiService = apiService;
 
   // -------------------------------------------------------------------------
   // Getters
@@ -53,22 +56,28 @@ class ProductProvider extends ChangeNotifier {
   /// Fetches products from the API, applying the current category filter and
   /// search query. Updates [_isLoading] and [_error] accordingly.
   Future<void> fetchProducts() async {
+    final requestId = ++_requestId;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _products = await _apiService.fetchProducts(
+      final products = await _apiService.fetchProducts(
         category: _selectedCategory == 'All' ? null : _selectedCategory,
         search: _searchQuery.isEmpty ? null : _searchQuery,
       );
+      if (requestId == _requestId && !_disposed) _products = products;
     } on ApiException catch (e) {
-      _error = e.message;
+      if (requestId == _requestId) _error = e.message;
     } catch (e) {
-      _error = e.toString();
+      if (requestId == _requestId) {
+        _error = 'Unable to load the collection. Please try again.';
+      }
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (requestId == _requestId && !_disposed) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -80,6 +89,7 @@ class ProductProvider extends ChangeNotifier {
 
   /// Updates the search query with a 400 ms debounce before re-fetching.
   void setSearchQuery(String query) {
+    ++_requestId;
     _searchQuery = query;
     _debounce?.cancel();
     _debounce = Timer(_debounceDuration, fetchProducts);
@@ -99,6 +109,7 @@ class ProductProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _debounce?.cancel();
     super.dispose();
   }

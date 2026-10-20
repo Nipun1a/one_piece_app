@@ -35,7 +35,7 @@ function signToken(userId) {
  */
 async function register(req, res, next) {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password } = req.body || {};
 
     // --- Field validation ---
     if (!name || typeof name !== 'string' || name.trim() === '') {
@@ -88,6 +88,9 @@ async function register(req, res, next) {
       },
     });
   } catch (err) {
+    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
     next(err);
   }
 }
@@ -107,7 +110,7 @@ async function register(req, res, next) {
  */
 async function login(req, res, next) {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
 
     // --- Field presence validation ---
     if (!email || typeof email !== 'string' || email.trim() === '') {

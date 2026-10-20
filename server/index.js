@@ -36,12 +36,16 @@ app.use((req, res) => {
 // ── Global error handler ────────────────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Invalid JSON request body' });
+  }
   console.error(err);
   res.status(500).json({ error: 'Internal server error' });
 });
 
 // ── Start server only when run directly (not when required by tests) ─────────
 if (require.main === module) {
+  if (!process.env.JWT_SECRET) throw new Error('Set JWT_SECRET in server/.env before starting the API');
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`[server] Grand Line Store API listening on port ${PORT}`);

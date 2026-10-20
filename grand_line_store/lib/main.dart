@@ -34,7 +34,7 @@ Future<void> main() async {
     onLogout: cartProvider.clear,
   );
 
-  await authProvider.init();
+  authProvider.init();
 
   final productProvider = ProductProvider(apiService: apiService);
 
@@ -84,10 +84,18 @@ class GrandLineApp extends StatelessWidget {
           '/home': (_) => const HomeScreen(),
           '/product': (_) => const ProductDetailScreen(),
           '/cart': (_) => const CartScreen(),
-          '/checkout': (_) => const CheckoutScreen(),
-          '/orders': (_) => const OrdersScreen(),
+          '/checkout': (_) => const SessionGate(child: CheckoutScreen()),
+          '/orders': (_) => const SessionGate(child: OrdersScreen()),
         },
       ),
     );
   }
+}
+
+class SessionGate extends StatelessWidget {
+  const SessionGate({super.key, required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) =>
+      context.watch<AuthProvider>().isLoggedIn ? child : const LoginScreen();
 }

@@ -21,7 +21,7 @@ import 'package:grand_line_store/services/api_service.dart';
 /// plain Map so tests never touch the platform channel.
 class FakeSecureStorage implements FlutterSecureStorage {
   FakeSecureStorage([Map<String, String>? initial])
-      : _store = Map<String, String>.from(initial ?? {});
+    : _store = Map<String, String>.from(initial ?? {});
 
   final Map<String, String> _store;
 
@@ -34,8 +34,7 @@ class FakeSecureStorage implements FlutterSecureStorage {
     WebOptions? webOptions,
     MacOsOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async =>
-      _store[key];
+  }) async => _store[key];
 
   @override
   Future<void> write({
@@ -64,8 +63,7 @@ class FakeSecureStorage implements FlutterSecureStorage {
     WebOptions? webOptions,
     MacOsOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async =>
-      _store.remove(key);
+  }) async => _store.remove(key);
 
   @override
   Future<void> deleteAll({
@@ -75,8 +73,7 @@ class FakeSecureStorage implements FlutterSecureStorage {
     WebOptions? webOptions,
     MacOsOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async =>
-      _store.clear();
+  }) async => _store.clear();
 
   @override
   Future<Map<String, String>> readAll({
@@ -86,8 +83,7 @@ class FakeSecureStorage implements FlutterSecureStorage {
     WebOptions? webOptions,
     MacOsOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async =>
-      Map<String, String>.unmodifiable(_store);
+  }) async => Map<String, String>.unmodifiable(_store);
 
   @override
   Future<bool> containsKey({
@@ -98,8 +94,7 @@ class FakeSecureStorage implements FlutterSecureStorage {
     WebOptions? webOptions,
     MacOsOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async =>
-      _store.containsKey(key);
+  }) async => _store.containsKey(key);
 
   // ---- unused members — fall back to noSuchMethod -------------------------
 
@@ -136,9 +131,14 @@ class FakeApiService extends ApiService {
   const FakeApiService() : super(baseUrl: 'http://fake.invalid');
 
   @override
+  Future<User> fetchCurrentUser() async => _testUser;
+
+  @override
   Future<AuthResponse> register(
-          String name, String email, String password) async =>
-      throw UnimplementedError('FakeApiService: register not used here');
+    String name,
+    String email,
+    String password,
+  ) async => throw UnimplementedError('FakeApiService: register not used here');
 
   @override
   Future<AuthResponse> login(String email, String password) async =>
@@ -181,7 +181,49 @@ AuthProvider _providerWithoutStoredToken({VoidCallback? onLogout}) {
 // Tests
 // ---------------------------------------------------------------------------
 
+class ExpiredApiService extends FakeApiService {
+  @override
+  Future<User> fetchCurrentUser() async =>
+      throw const ApiException(401, 'Expired');
+}
+
+class UnavailableStorage extends FakeSecureStorage {
+  @override
+  Future<String?> read({
+    required String key,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async => throw Exception('Storage locked');
+}
+
 void main() {
+  test('expired server session is removed instead of restored', () async {
+    final storage = FakeSecureStorage({
+      'auth_token': _testToken,
+      'auth_user': _testUserJson,
+    });
+    final provider = AuthProvider(
+      apiService: ExpiredApiService(),
+      storage: storage,
+    );
+    await provider.init();
+    expect(provider.isInitialized, isTrue);
+    expect(provider.isLoggedIn, isFalse);
+    expect(await storage.read(key: 'auth_token'), isNull);
+  });
+  test('storage failure does not block app startup', () async {
+    final provider = AuthProvider(
+      apiService: const FakeApiService(),
+      storage: UnavailableStorage(),
+    );
+    await provider.init();
+    expect(provider.isInitialized, isTrue);
+    expect(provider.isLoggedIn, isFalse);
+  });
   group('AuthProvider', () {
     // -----------------------------------------------------------------------
     // init() / tryAutoLogin — stored token present
@@ -190,8 +232,11 @@ void main() {
     group('init() with stored token', () {
       test('isLoggedIn becomes true after init', () async {
         final provider = _providerWithStoredToken();
-        expect(provider.isLoggedIn, isFalse,
-            reason: 'should start logged-out before init');
+        expect(
+          provider.isLoggedIn,
+          isFalse,
+          reason: 'should start logged-out before init',
+        );
 
         await provider.init();
 
@@ -265,8 +310,11 @@ void main() {
       test('clears the in-memory token', () async {
         final provider = _providerWithStoredToken();
         await provider.init();
-        expect(provider.token, isNotNull,
-            reason: 'pre-condition: token was loaded');
+        expect(
+          provider.token,
+          isNotNull,
+          reason: 'pre-condition: token was loaded',
+        );
 
         provider.handleUnauthorized();
         // handleUnauthorized delegates to logout() which is async, but the
@@ -279,8 +327,11 @@ void main() {
       test('sets isLoggedIn to false', () async {
         final provider = _providerWithStoredToken();
         await provider.init();
-        expect(provider.isLoggedIn, isTrue,
-            reason: 'pre-condition: user is logged in');
+        expect(
+          provider.isLoggedIn,
+          isTrue,
+          reason: 'pre-condition: user is logged in',
+        );
 
         provider.handleUnauthorized();
         await Future<void>.delayed(Duration.zero);
@@ -306,13 +357,10 @@ void main() {
         final provider = _providerWithStoredToken();
         await provider.init();
 
-        expect(
-          () async {
-            provider.handleUnauthorized();
-            await Future<void>.delayed(Duration.zero);
-          },
-          returnsNormally,
-        );
+        expect(() async {
+          provider.handleUnauthorized();
+          await Future<void>.delayed(Duration.zero);
+        }, returnsNormally);
       });
     });
   });

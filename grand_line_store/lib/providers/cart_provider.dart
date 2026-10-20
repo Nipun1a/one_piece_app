@@ -43,6 +43,7 @@ class CartProvider extends ChangeNotifier {
   /// (capped at [product.stock]). Otherwise a new [CartItem] with quantity 1
   /// is appended.
   void addItem(Product product) {
+    if (product.stock <= 0) return;
     final index = _items.indexWhere((item) => item.product.id == product.id);
     if (index >= 0) {
       final current = _items[index];

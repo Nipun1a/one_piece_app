@@ -24,8 +24,8 @@ class AuthProvider extends ChangeNotifier {
     required ApiService apiService,
     FlutterSecureStorage? storage,
     this.onLogout,
-  })  : _api = apiService,
-        _storage = storage ?? const FlutterSecureStorage();
+  }) : _api = apiService,
+       _storage = storage ?? const FlutterSecureStorage();
 
   // -------------------------------------------------------------------------
   // Dependencies
@@ -80,22 +80,24 @@ class AuthProvider extends ChangeNotifier {
   /// Call this once from [SplashScreen] (or `main.dart`) before deciding which
   /// route to push. After this method returns, [isInitialized] is `true`.
   Future<void> init() async {
-    final storedToken = await _storage.read(key: 'auth_token');
-    final storedUser = await _storage.read(key: 'auth_user');
-
-    if (storedToken != null && storedUser != null) {
-      try {
-        final userJson = jsonDecode(storedUser) as Map<String, dynamic>;
-        _user = User.fromJson(userJson);
+    try {
+      final storedToken = await _storage.read(key: 'auth_token');
+      if (storedToken != null) {
+        _user = await _api.fetchCurrentUser();
         _token = storedToken;
-      } catch (_) {
-        // Corrupt data — treat as logged out.
-        await _clearStorage();
       }
+    } catch (_) {
+      _user = null;
+      _token = null;
+      try {
+        await _clearStorage();
+      } catch (_) {
+        /* Storage may be unavailable. */
+      }
+    } finally {
+      _isInitialized = true;
+      notifyListeners();
     }
-
-    _isInitialized = true;
-    notifyListeners();
   }
 
   // -------------------------------------------------------------------------
@@ -107,6 +109,7 @@ class AuthProvider extends ChangeNotifier {
   /// On success [user] and [token] are set and listeners are notified.
   /// On failure [error] is set and the exception is NOT re-thrown.
   Future<void> register(String name, String email, String password) async {
+    if (_isLoading) return;
     _startLoading();
 
     try {
@@ -116,7 +119,7 @@ class AuthProvider extends ChangeNotifier {
       _setError(e.message);
       return;
     } catch (e) {
-      _setError(e.toString());
+      _setError('Unable to save your session. Please try again.');
       return;
     }
   }
@@ -130,6 +133,7 @@ class AuthProvider extends ChangeNotifier {
   /// On success [user] and [token] are set and listeners are notified.
   /// On failure [error] is set and the exception is NOT re-thrown.
   Future<void> login(String email, String password) async {
+    if (_isLoading) return;
     _startLoading();
 
     try {
@@ -139,7 +143,7 @@ class AuthProvider extends ChangeNotifier {
       _setError(e.message);
       return;
     } catch (e) {
-      _setError(e.toString());
+      _setError('Unable to save your session. Please try again.');
       return;
     }
   }
@@ -153,12 +157,17 @@ class AuthProvider extends ChangeNotifier {
   /// Invokes [onLogout] (if provided) after clearing state, which can be used
   /// to clear the cart and/or navigate to the login screen.
   Future<void> logout() async {
-    await _clearStorage();
     _user = null;
     _token = null;
     _error = null;
     notifyListeners();
     onLogout?.call();
+    try {
+      await _clearStorage();
+    } catch (_) {
+      _error = 'Could not remove the saved session. Please retry signing out.';
+      notifyListeners();
+    }
   }
 
   // -------------------------------------------------------------------------

@@ -23,7 +23,10 @@ const db = require('../db/database');
 function placeOrder(req, res, next) {
   try {
     const userId = req.user.id;
-    const { items, address, phone } = req.body;
+    const { items, address, phone } = req.body || {};
+    if (!db.prepare('SELECT id FROM users WHERE id = ?').get(userId)) {
+      return res.status(401).json({ error: 'Session is no longer valid' });
+    }
 
     // --- Validate items ---
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -44,9 +47,18 @@ function placeOrder(req, res, next) {
     // --- Pre-flight: verify all products exist and have sufficient stock ---
     // Collect resolved product data before touching the DB with writes
     const resolvedItems = [];
-
+    const quantities = new Map();
     for (const item of items) {
-      const { productId, quantity } = item;
+      if (!item || !Number.isSafeInteger(item.productId) || item.productId <= 0 ||
+          !Number.isSafeInteger(item.quantity) || item.quantity <= 0) {
+        return res.status(400).json({ error: 'Product IDs and quantities must be positive integers' });
+      }
+      const quantity = (quantities.get(item.productId) || 0) + item.quantity;
+      if (!Number.isSafeInteger(quantity)) return res.status(400).json({ error: 'Quantity is too large' });
+      quantities.set(item.productId, quantity);
+    }
+
+    for (const [productId, quantity] of quantities) {
 
       const product = db
         .prepare('SELECT id, name, price, stock FROM products WHERE id = ?')
@@ -134,6 +146,9 @@ function placeOrder(req, res, next) {
 function listOrders(req, res, next) {
   try {
     const userId = req.user.id;
+    if (!db.prepare('SELECT id FROM users WHERE id = ?').get(userId)) {
+      return res.status(401).json({ error: 'Session is no longer valid' });
+    }
 
     // Fetch all orders for this user, newest first
     const orders = db

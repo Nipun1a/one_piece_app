@@ -14,14 +14,18 @@ const jwt = require('jsonwebtoken');
  */
 function verifyToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader?.split(' ')[1];
+  const token = typeof authHeader === 'string'
+    ? /^Bearer\s+(\S+)$/i.exec(authHeader)?.[1] : null;
 
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    if (!Number.isSafeInteger(decoded.userId) || decoded.userId <= 0) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     req.user = { id: decoded.userId };
     next();
   } catch {

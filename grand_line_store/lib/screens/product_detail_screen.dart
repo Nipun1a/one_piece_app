@@ -35,6 +35,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   void _addToCart(BuildContext context, Product product) {
     final cart = context.read<CartProvider>();
 
+    final before = cart.getItem(product.id)?.quantity ?? 0;
     // addItem increments by 1 each call; call it _quantity times.
     for (var i = 0; i < _quantity; i++) {
       cart.addItem(product);
@@ -42,9 +43,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          '${product.name} (×$_quantity) added to cart!',
-        ),
+        content: Text((cart.getItem(product.id)?.quantity ?? 0) == before ? 'All available stock is already in your bag.' : '${product.name}: ${(cart.getItem(product.id)?.quantity ?? 0) - before} added to your bag.'),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ),
@@ -53,8 +52,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final product =
-        ModalRoute.of(context)!.settings.arguments as Product;
+    final arguments = ModalRoute.of(context)?.settings.arguments;
+    if (arguments is! Product) {
+      return Scaffold(appBar: AppBar(title: const Text('The collection')),
+        body: Center(child: ElevatedButton(onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false), child: const Text('Browse products'))));
+    }
+    final product = arguments;
 
     final theme = Theme.of(context);
     final inStock = product.stock > 0;
@@ -121,8 +124,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   Chip(
                     label: Text(product.category),
                     avatar: const Icon(Icons.label_outline, size: 16),
-                    backgroundColor:
-                        theme.colorScheme.primaryContainer,
+                    backgroundColor: theme.colorScheme.primaryContainer,
                     labelStyle: TextStyle(
                       color: theme.colorScheme.onPrimaryContainer,
                       fontWeight: FontWeight.w500,
@@ -136,8 +138,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   // Star rating
                   Row(
                     children: [
-                      const Icon(Icons.star_rounded,
-                          color: Colors.amber, size: 22),
+                      const Icon(
+                        Icons.star_rounded,
+                        color: Colors.amber,
+                        size: 22,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         product.rating.toStringAsFixed(1),

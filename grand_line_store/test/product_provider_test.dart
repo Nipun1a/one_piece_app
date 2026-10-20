@@ -62,21 +62,35 @@ class FakeApiService extends ApiService {
 // ---------------------------------------------------------------------------
 
 Product _makeProduct(int id) => Product(
-      id: id,
-      name: 'Product $id',
-      description: 'Description $id',
-      price: 9.99,
-      category: 'Figures',
-      imageUrl: 'https://example.com/$id.jpg',
-      stock: 10,
-      rating: 4.5,
-    );
+  id: id,
+  name: 'Product $id',
+  description: 'Description $id',
+  price: 9.99,
+  category: 'Figures',
+  imageUrl: 'https://example.com/$id.jpg',
+  stock: 10,
+  rating: 4.5,
+);
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 void main() {
+  test('a slow old request cannot overwrite a newer category', () async {
+    final api = FakeApiService();
+    final provider = ProductProvider(apiService: api);
+    final first = Completer<List<Product>>();
+    api.fetchCompleter = first;
+    final oldRequest = provider.fetchProducts();
+    api.fetchCompleter = null;
+    api.productsToReturn = [_makeProduct(2)];
+    await provider.fetchProducts();
+    first.complete([_makeProduct(1)]);
+    await oldRequest;
+    expect(provider.products.single.id, 2);
+    provider.dispose();
+  });
   late FakeApiService fakeApi;
   late ProductProvider provider;
 
@@ -173,32 +187,35 @@ void main() {
 
   group('setSearchQuery debounce', () {
     test(
-        'multiple rapid calls result in only one fetch after 400 ms',
-        () async {
-      fakeApi.productsToReturn = [];
+      'multiple rapid calls result in only one fetch after 400 ms',
+      () async {
+        fakeApi.productsToReturn = [];
 
-      // Fire 5 rapid calls — none should trigger a fetch yet.
-      provider.setSearchQuery('L');
-      provider.setSearchQuery('Lu');
-      provider.setSearchQuery('Luf');
-      provider.setSearchQuery('Luffy');
-      provider.setSearchQuery('Luffy!');
+        // Fire 5 rapid calls — none should trigger a fetch yet.
+        provider.setSearchQuery('L');
+        provider.setSearchQuery('Lu');
+        provider.setSearchQuery('Luf');
+        provider.setSearchQuery('Luffy');
+        provider.setSearchQuery('Luffy!');
 
-      // Immediately after: no fetch should have happened.
-      expect(fakeApi.fetchCallCount, 0);
+        // Immediately after: no fetch should have happened.
+        expect(fakeApi.fetchCallCount, 0);
 
-      // After the debounce window expires, exactly one fetch occurs.
-      await Future<void>.delayed(const Duration(milliseconds: 450));
+        // After the debounce window expires, exactly one fetch occurs.
+        await Future<void>.delayed(const Duration(milliseconds: 450));
 
-      expect(fakeApi.fetchCallCount, 1);
-      expect(fakeApi.lastSearch, 'Luffy!');
-    });
+        expect(fakeApi.fetchCallCount, 1);
+        expect(fakeApi.lastSearch, 'Luffy!');
+      },
+    );
 
-    test('searchQuery is updated to the latest value without waiting for debounce',
-        () {
-      provider.setSearchQuery('Zoro');
-      expect(provider.searchQuery, 'Zoro');
-    });
+    test(
+      'searchQuery is updated to the latest value without waiting for debounce',
+      () {
+        provider.setSearchQuery('Zoro');
+        expect(provider.searchQuery, 'Zoro');
+      },
+    );
 
     test('search combined with category sends both params', () async {
       fakeApi.productsToReturn = [];
@@ -283,25 +300,28 @@ void main() {
       expect(provider.products.first.id, 42);
     });
 
-    test('retry passes null error state to listeners during re-fetch', () async {
-      fakeApi.nextError = const ApiException(500, 'Fail');
-      await provider.fetchProducts();
+    test(
+      'retry passes null error state to listeners during re-fetch',
+      () async {
+        fakeApi.nextError = const ApiException(500, 'Fail');
+        await provider.fetchProducts();
 
-      // Error is set.
-      expect(provider.error, isNotNull);
+        // Error is set.
+        expect(provider.error, isNotNull);
 
-      // retry() triggers a fresh fetch; error should clear before the new
-      // fetch result arrives.
-      final errorsDuringRetry = <String?>[];
-      provider.addListener(() => errorsDuringRetry.add(provider.error));
+        // retry() triggers a fresh fetch; error should clear before the new
+        // fetch result arrives.
+        final errorsDuringRetry = <String?>[];
+        provider.addListener(() => errorsDuringRetry.add(provider.error));
 
-      fakeApi.productsToReturn = [];
-      await provider.retry();
+        fakeApi.productsToReturn = [];
+        await provider.retry();
 
-      // The first notification from retry's internal fetchProducts call sets
-      // isLoading=true and error=null; the second finishes.
-      expect(errorsDuringRetry, contains(null));
-    });
+        // The first notification from retry's internal fetchProducts call sets
+        // isLoading=true and error=null; the second finishes.
+        expect(errorsDuringRetry, contains(null));
+      },
+    );
 
     test('non-ApiException errors also populate the error field', () async {
       fakeApi.nextError = Exception('Unexpected crash');
@@ -309,7 +329,10 @@ void main() {
       await provider.fetchProducts();
 
       expect(provider.error, isNotNull);
-      expect(provider.error, contains('Unexpected crash'));
+      expect(
+        provider.error,
+        equals('Unable to load the collection. Please try again.'),
+      );
     });
 
     test('a successful retry after a general exception clears error', () async {

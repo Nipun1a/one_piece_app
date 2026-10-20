@@ -61,6 +61,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _placeOrder() async {
+    if (_isLoading) return;
     FocusScope.of(context).unfocus();
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -82,10 +83,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     final request = PlaceOrderRequest(
       items: cartItems
-          .map((item) => {
-                'productId': item.product.id,
-                'quantity': item.quantity,
-              })
+          .map(
+            (item) => {'productId': item.product.id, 'quantity': item.quantity},
+          )
           .toList(),
       address: _addressController.text.trim(),
       phone: _phoneController.text.trim(),
@@ -151,9 +151,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           children: [
             Text(
               'Order Summary',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const Divider(height: 20),
             // Item list
@@ -170,16 +169,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                     Text(
                       '×${item.quantity}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
-                          ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: Colors.grey.shade600),
                     ),
                     const SizedBox(width: 16),
                     Text(
                       '\$${item.subtotal.toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -192,16 +189,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               children: [
                 Text(
                   'Total',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 Text(
                   '\$${total.toStringAsFixed(2)}',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF0B2545),
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF203E38),
+                  ),
                 ),
               ],
             ),
@@ -221,9 +217,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           children: [
             Text(
               'Delivery Details',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             // Address field
@@ -276,7 +271,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Checkout'),
-        backgroundColor: const Color(0xFF0B2545),
+        backgroundColor: const Color(0xFF203E38),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -300,7 +295,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   onPressed: _isLoading ? null : _placeOrder,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0xFF0B2545),
+                    backgroundColor: const Color(0xFF203E38),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),

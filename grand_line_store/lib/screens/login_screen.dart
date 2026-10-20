@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../widgets/loading_indicator.dart';
+import '../widgets/auth_frame.dart';
 
 /// Login screen for the Grand Line Store.
 ///
@@ -57,6 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _submit() async {
+    if (context.read<AuthProvider>().isLoading) return;
     // Unfocus to dismiss keyboard before validation
     FocusScope.of(context).unfocus();
 
@@ -84,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     // Success — navigate to home and remove the login screen from the stack.
-    Navigator.of(context).pushReplacementNamed('/home');
+    Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
   }
 
   // ---------------------------------------------------------------------------
@@ -100,34 +102,37 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Stack(
         children: [
           SafeArea(
-            child: Center(
+            child: AuthFrame(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 32,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // ── Header ──────────────────────────────────────────────
-                    const Icon(
-                      Icons.anchor,
-                      size: 72,
-                      color: Color(0xFF0B2545),
+                    const Text(
+                      'GRAND LINE / CREW ACCESS',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 10, letterSpacing: 2),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Grand Line Store',
+                      'Welcome aboard.',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFF0B2545),
+                            color: const Color(0xFF203E38),
                           ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Sign in to your account',
+                      'Your next chapter starts here. Sign in to continue.',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
-                          ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: Colors.grey.shade600),
                     ),
                     const SizedBox(height: 40),
 
@@ -141,6 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
+                            autofillHints: const [AutofillHints.email],
                             textInputAction: TextInputAction.next,
                             autocorrect: false,
                             enabled: !isLoading,
@@ -158,6 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
+                            autofillHints: const [AutofillHints.password],
                             textInputAction: TextInputAction.done,
                             enabled: !isLoading,
                             onFieldSubmitted: (_) => _submit(),
@@ -187,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: isLoading ? null : _submit,
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14),
-                              backgroundColor: const Color(0xFF0B2545),
+                              backgroundColor: const Color(0xFF203E38),
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -204,8 +211,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // ── Register link ────────────────────────────────────────
                     const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           "Don't have an account?",
@@ -214,10 +222,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextButton(
                           onPressed: isLoading
                               ? null
-                              : () => Navigator.of(context).pushNamed('/register'),
-                          child: const Text('Register'),
+                              : () =>
+                                    Navigator.of(context)
+                                        .pushNamed('/register'),
+                          child: const Text('Create an account'),
                         ),
                       ],
+                    ),
+                    TextButton(
+                      onPressed: isLoading
+                          ? null
+                          : () => Navigator.pushNamedAndRemoveUntil(
+                              context,
+                              '/home',
+                              (_) => false,
+                            ),
+                      child: const Text('Explore the store first →'),
                     ),
                   ],
                 ),
